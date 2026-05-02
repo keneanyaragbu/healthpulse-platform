@@ -1,0 +1,46 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+dist/
+
+# Environment variables (CRITICAL)
+.env
+.env.*
+
+# Logs
+*.log
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Ansible
+*.retry
+
+# Kubernetes
+*.yaml.tmp
+
+# Docker
+*.tar
+
+# IDE
+.vscode/
+.idea/
+
+# MkDocs build output
+site/
+
+# Secrets
+secrets.yml
+*.key
+*.pem
+
