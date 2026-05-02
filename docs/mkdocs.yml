@@ -1,0 +1,38 @@
+site_name: HealthPulse DevOps Platform
+site_description: DevOps documentation for the HealthPulse Portal capstone project
+site_author: Kenechukwu Anyaragbu
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Architecture Decisions: architecture.md
+  - Environments: environments.md
+  - CI/CD Pipeline: pipeline.md
+  - Runbooks: runbooks.md
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences

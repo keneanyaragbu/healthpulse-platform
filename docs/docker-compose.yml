@@ -1,0 +1,15 @@
+services:
+  docs-prod:
+    build: .
+    container_name: healthpulse-docs-prod
+    ports:
+      - "84:80"
+
+  docs-dev:
+    image: squidfunk/mkdocs-material
+    container_name: healthpulse-docs-dev
+    ports:
+      - "8084:8000"
+    volumes:
+      - .:/docs
+    command: serve -a 0.0.0.0:8000
