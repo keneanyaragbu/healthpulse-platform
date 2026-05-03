@@ -27,6 +27,8 @@ nav:
   - Architecture Decisions: architecture.md
   - Environments: environments.md
   - CI/CD Pipeline: pipeline.md
+  - Bare-Metal Deployment: baremetal-deployment.md
+  - Repository Security: repository-security.md  
   - Runbooks: runbooks.md
 
 markdown_extensions:
