@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: healthpulse-web
+  namespace: healthpulse
+  labels:
+    app.kubernetes.io/name: healthpulse-web
+    app.kubernetes.io/part-of: healthpulse-platform
+    app.kubernetes.io/component: ingress
+    environment: dev
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: healthpulse.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: healthpulse-web
+                port:
+                  number: 80
