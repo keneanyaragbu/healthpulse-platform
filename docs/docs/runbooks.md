@@ -69,3 +69,76 @@ kubectl get pods -n healthpulse-prod
 kubectl logs deployment/healthpulse-portal -n healthpulse-prod
 kubectl describe deployment healthpulse-portal -n healthpulse-prod
 
+
+---
+
+## Runbook 5: Backend CrashLoopBackOff After New Image Release
+
+### When to Use
+
+Use when a newly deployed backend image causes pods to crash or rollout becomes stuck.
+
+### Incident Example
+
+During the HealthPulse backend `v2` rollout, Kubernetes created a new ReplicaSet, but the new backend pod entered `CrashLoopBackOff`.
+
+The old backend pods remained running, which protected application availability during the failed rollout.
+
+### Symptoms
+
+```bash
+kubectl rollout status deployment/healthpulse-backend -n healthpulse
+kubectl get pods -n healthpulse -o wide
+
+Observed:
+
+0/1 CrashLoopBackOff
+Investigation
+
+Check application logs:
+
+kubectl logs <backend-pod-name> -n healthpulse
+
+The logs showed a Node.js syntax error in server.js.
+
+Root Cause
+
+The backend appointments array was missing commas between JavaScript objects.
+
+Fix
+Correct the syntax error in app/backend/server.js.
+Build a new immutable Docker image tag.
+Push the image to Docker Hub.
+Update the Kubernetes Deployment manifest.
+Apply the manifest.
+Verify rollout and API health.
+Recovery Commands
+docker build -t keneanyaragbu/healthpulse-backend:v3 app/backend
+docker push keneanyaragbu/healthpulse-backend:v3
+
+kubectl apply -f terraform/k3s/k8s/backend/deployment.yml
+kubectl rollout status deployment/healthpulse-backend -n healthpulse
+kubectl get pods -n healthpulse -o wide
+Validation
+
+Internal Service test:
+
+kubectl run backend-test \
+  -n healthpulse \
+  --image=curlimages/curl \
+  --restart=Never \
+  --attach \
+  --rm \
+  -- curl -s http://healthpulse-backend:3000/api/health
+
+Ingress test:
+
+curl http://healthpulse.local/api/health
+curl http://healthpulse.local/api/appointments
+Lessons Learned
+kubectl logs helps diagnose application-level failures.
+kubectl describe pod helps diagnose Kubernetes object issues such as probes, scheduling, image pulls, and events.
+Rolling updates protect availability because old healthy pods remain running while new pods are tested.
+Immutable image tags like v3 are safer than overwriting a broken v2 tag.
+Kubernetes Service ports must be tested with the correct port, such as healthpulse-backend:3000.
+

@@ -25,6 +25,9 @@ data "aws_ami" "ubuntu" {
     values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
   }
 }
+data "aws_availability_zones" "available" {
+  state = "available"
+}
 
 resource "random_password" "k3s_token" {
   length  = 32
@@ -51,6 +54,7 @@ resource "aws_vpc" "k3s" {
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.k3s.id
   cidr_block              = var.public_subnet_cidr
+  availability_zone       = data.aws_availability_zones.available.names[0]
   map_public_ip_on_launch = true
 
   tags = {
