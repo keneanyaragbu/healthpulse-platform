@@ -1,50 +1,50 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: healthpulse-web
+  name: healthpulse-backend
   namespace: healthpulse
   labels:
-    app.kubernetes.io/name: healthpulse-web
+    app.kubernetes.io/name: healthpulse-backend
     app.kubernetes.io/part-of: healthpulse-platform
-    app.kubernetes.io/component: web
+    app.kubernetes.io/component: backend
     environment: dev
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
-      app.kubernetes.io/name: healthpulse-web
-      app.kubernetes.io/component: web
+      app.kubernetes.io/name: healthpulse-backend
+      app.kubernetes.io/component: backend
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: healthpulse-web
+        app.kubernetes.io/name: healthpulse-backend
         app.kubernetes.io/part-of: healthpulse-platform
-        app.kubernetes.io/component: web
+        app.kubernetes.io/component: backend
         environment: dev
     spec:
       containers:
-        - name: nginx
-          image: nginx:1.27-alpine
-          imagePullPolicy: IfNotPresent
+        - name: backend
+          image: keneanyaragbu/healthpulse-backend:v3
+          imagePullPolicy: Always
           ports:
-            - containerPort: 80
+            - containerPort: 3000
               name: http
           resources:
             requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
-              cpu: 250m
+              cpu: 100m
               memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
           readinessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: http
             initialDelaySeconds: 15
             periodSeconds: 20

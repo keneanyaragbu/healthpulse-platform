@@ -6,13 +6,13 @@ metadata:
   labels:
     app.kubernetes.io/name: healthpulse-web
     app.kubernetes.io/part-of: healthpulse-platform
-    app.kubernetes.io/component: web
+    app.kubernetes.io/component: frontend
     environment: dev
 spec:
   type: ClusterIP
   selector:
     app.kubernetes.io/name: healthpulse-web
-    app.kubernetes.io/component: web
+    app.kubernetes.io/component: frontend
   ports:
     - name: http
       port: 80
