@@ -1,0 +1,38 @@
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME = 'healthpulse-backend'
+        IMAGE_NAME = 'keneanyaragbu/healthpulse-backend'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        BACKEND_DIR = 'app/backend'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Verify Backend Files') {
+            steps {
+                sh '''
+                    echo "Checking backend project files..."
+                    ls -la ${BACKEND_DIR}
+                    test -f ${BACKEND_DIR}/Dockerfile
+                    test -f ${BACKEND_DIR}/package.json
+                    test -f ${BACKEND_DIR}/server.js
+                '''
+            }
+        }
+
+        stage('Build Backend Docker Image') {
+            steps {
+                sh '''
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ${BACKEND_DIR}
+                '''
+            }
+        }
+    }
+}
