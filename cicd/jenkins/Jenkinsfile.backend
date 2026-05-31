@@ -23,6 +23,7 @@ pipeline {
                     test -f ${BACKEND_DIR}/Dockerfile
                     test -f ${BACKEND_DIR}/package.json
                     test -f ${BACKEND_DIR}/server.js
+                    test -f ${BACKEND_DIR}/sonar-project.properties
                 '''
             }
         }
@@ -42,6 +43,30 @@ pipeline {
                     cd ${BACKEND_DIR}
                     npm test
                 '''
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool 'SonarScanner'
+
+                    dir("${BACKEND_DIR}") {
+                        withSonarQubeEnv('SonarQube') {
+                            sh """
+                                ${scannerHome}/bin/sonar-scanner
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
             }
         }
 
