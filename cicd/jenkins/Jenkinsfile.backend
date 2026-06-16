@@ -6,6 +6,10 @@ pipeline {
         IMAGE_NAME = 'keneanyaragbu/healthpulse-backend'
         IMAGE_TAG = "${BUILD_NUMBER}"
         BACKEND_DIR = 'app/backend'
+
+        ARTIFACTORY_REGISTRY = '34.204.100.27:8082'
+        ARTIFACTORY_REPO = 'docker-local'
+        ARTIFACTORY_IMAGE = "${ARTIFACTORY_REGISTRY}/${ARTIFACTORY_REPO}/${APP_NAME}:${IMAGE_TAG}"
     }
 
     stages {
@@ -91,6 +95,31 @@ pipeline {
             steps {
                 sh '''
                     docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ${BACKEND_DIR}
+                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${ARTIFACTORY_IMAGE}
+                '''
+            }
+        }
+
+        stage('Snyk Container Scan') {
+            steps {
+                script {
+                    def snykHome = tool 'snyk'
+
+                    withCredentials([string(credentialsId: 'healthpulse-snyk-cli-token', variable: 'SNYK_TOKEN')]) {
+                        sh """
+                            ${snykHome}/snyk auth ${SNYK_TOKEN}
+                            ${snykHome}/snyk container test ${IMAGE_NAME}:${IMAGE_TAG} --severity-threshold=high
+                            ${snykHome}/snyk container monitor ${IMAGE_NAME}:${IMAGE_TAG}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Trivy Container Scan') {
+            steps {
+                sh '''
+                    trivy image --severity HIGH,CRITICAL --exit-code 1 ${IMAGE_NAME}:${IMAGE_TAG}
                 '''
             }
         }
@@ -104,6 +133,18 @@ pipeline {
                     curl -f http://localhost:3001/api/health
                     docker rm -f ${APP_NAME}-smoke-test || true
                 '''
+            }
+        }
+
+        stage('Push Image to Artifactory') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'artifactory-creds', usernameVariable: 'ARTIFACTORY_USER', passwordVariable: 'ARTIFACTORY_PASSWORD')]) { // pragma: allowlist secret
+                    sh '''
+                        echo "${ARTIFACTORY_PASSWORD}" | docker login ${ARTIFACTORY_REGISTRY} -u "${ARTIFACTORY_USER}" --password-stdin
+                        docker push ${ARTIFACTORY_IMAGE}
+                        docker logout ${ARTIFACTORY_REGISTRY}
+                    '''
+                }
             }
         }
     }
