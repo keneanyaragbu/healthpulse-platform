@@ -76,7 +76,7 @@ pipeline {
                 dir("${BACKEND_DIR}") {
                     snykSecurity(
                         snykInstallation: 'snyk',
-                        snykTokenId: 'snyk_token',
+                        snykTokenId: 'healthpulse-snyk-token',
                         severity: 'high',
                         failOnIssues: true,
                         failOnError: true,
