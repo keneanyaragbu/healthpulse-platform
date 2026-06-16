@@ -81,8 +81,7 @@ pipeline {
                         failOnIssues: true,
                         failOnError: true,
                         monitorProjectOnBuild: true,
-                        targetFile: 'package.json',
-                        additionalArguments: '--all-projects --detection-depth=4'
+                        targetFile: 'package.json'
                     )
                 }
             }
