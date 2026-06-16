@@ -22,6 +22,7 @@ pipeline {
                     ls -la ${BACKEND_DIR}
                     test -f ${BACKEND_DIR}/Dockerfile
                     test -f ${BACKEND_DIR}/package.json
+                    test -f ${BACKEND_DIR}/package-lock.json
                     test -f ${BACKEND_DIR}/server.js
                     test -f ${BACKEND_DIR}/sonar-project.properties
                 '''
@@ -72,16 +73,17 @@ pipeline {
 
         stage('Snyk Dependency Scan') {
             steps {
-                script {
-                    def snykHome = tool 'snyk'
-
-                    withCredentials([string(credentialsId: 'snyk_token', variable: 'SNYK_TOKEN')]) {
-                        sh """
-                            cd ${BACKEND_DIR}
-                            ${snykHome}/snyk test --severity-threshold=high
-                            ${snykHome}/snyk monitor
-                        """
-                    }
+                dir("${BACKEND_DIR}") {
+                    snykSecurity(
+                        snykInstallation: 'snyk',
+                        snykTokenId: 'snyk_token',
+                        severity: 'high',
+                        failOnIssues: true,
+                        failOnError: true,
+                        monitorProjectOnBuild: true,
+                        targetFile: 'package.json',
+                        additionalArguments: '--all-projects --detection-depth=4'
+                    )
                 }
             }
         }
@@ -91,21 +93,6 @@ pipeline {
                 sh '''
                     DOCKER_BUILDKIT=1 docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ${BACKEND_DIR}
                 '''
-            }
-        }
-
-        stage('Snyk Container Scan') {
-            steps {
-                script {
-                    def snykHome = tool 'snyk'
-
-                    withCredentials([string(credentialsId: 'snyk_token', variable: 'SNYK_TOKEN')]) {
-                        sh """
-                            ${snykHome}/snyk container test ${IMAGE_NAME}:${IMAGE_TAG} --severity-threshold=high
-                            ${snykHome}/snyk container monitor ${IMAGE_NAME}:${IMAGE_TAG}
-                        """
-                    }
-                }
             }
         }
 
