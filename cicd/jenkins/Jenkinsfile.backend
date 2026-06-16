@@ -90,7 +90,7 @@ pipeline {
         stage('Build Backend Docker Image') {
             steps {
                 sh '''
-                    DOCKER_BUILDKIT=1 docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ${BACKEND_DIR}
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ${BACKEND_DIR}
                 '''
             }
         }
