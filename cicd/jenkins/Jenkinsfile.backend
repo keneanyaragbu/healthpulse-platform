@@ -100,21 +100,6 @@ pipeline {
             }
         }
 
-        stage('Snyk Container Scan') {
-            steps {
-                snykSecurity(
-                    snykInstallation: 'snyk',
-                    snykTokenId: 'healthpulse-snyk-token',
-                    severity: 'high',
-                    failOnIssues: true,
-                    failOnError: true,
-                    monitorProjectOnBuild: true,
-                    projectName: 'healthpulse-backend-container',
-                    additionalArguments: 'container test ${IMAGE_NAME}:${IMAGE_TAG}'
-                )
-            }
-        }
-
         stage('Trivy Container Scan') {
             steps {
                 sh '''
