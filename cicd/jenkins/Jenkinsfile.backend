@@ -3,15 +3,18 @@ pipeline {
 
     environment {
         APP_NAME = 'healthpulse-backend'
-        IMAGE_NAME = 'keneanyaragbu/healthpulse-backend'
-        IMAGE_TAG = "${BUILD_NUMBER}"
+        DOCKERHUB_REPO = 'keneanyaragbu/healthpulse-backend'
+        IMAGE_TAG = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+        // ↑ "build 14, commit abc1234" → "14-abc1234"
+        // Production tagging: ties every image to both the build AND the exact code.
+        // If someone asks "what's running in prod?", the tag answers both questions.
         BACKEND_DIR = 'app/backend'
-
-        ARTIFACTORY_REGISTRY = '34.204.100.27:8082'
-        ARTIFACTORY_REPO = 'docker-local'
-        ARTIFACTORY_IMAGE = "${ARTIFACTORY_REGISTRY}/${ARTIFACTORY_REPO}/${APP_NAME}:${IMAGE_TAG}"
     }
-
+    
+    triggers {
+        githubPush()
+    }
+    
     stages {
         stage('Checkout') {
             steps {
@@ -91,44 +94,64 @@ pipeline {
             }
         }
 
-        stage('Build Backend Docker Image') {
+        stage('Build Docker Image') {
             steps {
-                sh '''
-                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ${BACKEND_DIR}
-                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${ARTIFACTORY_IMAGE}
-                '''
+                sh """
+                    docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} ${BACKEND_DIR}
+                    docker tag ${DOCKERHUB_REPO}:${IMAGE_TAG} ${DOCKERHUB_REPO}:latest
+                """
+                // ↑ Two tags per build:
+                //   :14-abc1234  → immutable, pinned to this exact build (what you deploy to prod)
+                //   :latest      → mutable, always points to the most recent build (convenience for dev)
+                // Never deploy :latest to production — it's a moving target.
             }
         }
 
         stage('Trivy Container Scan') {
             steps {
-                sh '''
-                    trivy image --severity CRITICAL --exit-code 1 ${IMAGE_NAME}:${IMAGE_TAG}
-                '''
+                sh """
+                    trivy image --severity CRITICAL --exit-code 1 ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                """
+                // ↑ Scans the image for known CVEs. --exit-code 1 means "fail the pipeline"
+                // if any CRITICAL vulnerability is found. The image doesn't leave this server
+                // until it passes. This is your gate — nothing with a critical CVE gets pushed.
             }
         }
 
         stage('Smoke Test Docker Image') {
             steps {
-                sh '''
+                sh """
                     docker rm -f ${APP_NAME}-smoke-test || true
-                    docker run -d --name ${APP_NAME}-smoke-test -p 3001:3000 ${IMAGE_NAME}:${IMAGE_TAG}
+                    docker run -d --name ${APP_NAME}-smoke-test -p 3001:3000 ${DOCKERHUB_REPO}:${IMAGE_TAG}
                     sleep 5
                     curl -f http://localhost:3001/api/health
-                    docker rm -f ${APP_NAME}-smoke-test || true
-                '''
+                    docker rm -f ${APP_NAME}-smoke-test
+                """
+                // ↑ Actually starts the image and hits the health endpoint before pushing.
+                // This catches runtime issues that static scans miss: missing env vars,
+                // broken entrypoints, port misconfigs. If curl fails (non-200), the stage
+                // fails and the image never reaches the registry.
             }
         }
 
-        stage('Push Image to Artifactory') {
+        stage('Push to Docker Hub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'artifactory-creds', usernameVariable: 'ARTIFACTORY_USER', passwordVariable: 'ARTIFACTORY_PASSWORD')]) { // pragma: allowlist secret
+                withCredentials([usernamePassword( // pragma: allowlist secret
+                    credentialsId: 'dockerhub-creds', // pragma: allowlist secret
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS' // pragma: allowlist secret
+                )]) {
                     sh '''
-                        echo "${ARTIFACTORY_PASSWORD}" | docker login ${ARTIFACTORY_REGISTRY} -u "${ARTIFACTORY_USER}" --password-stdin
-                        docker push ${ARTIFACTORY_IMAGE}
-                        docker logout ${ARTIFACTORY_REGISTRY}
+                        echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
+                        docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                        docker push ${DOCKERHUB_REPO}:latest
+                        docker logout
                     '''
                 }
+                // ↑ withCredentials injects the Docker Hub creds as env vars for this block only —
+                // they're masked in console output and never written to disk.
+                // --password-stdin avoids the password appearing in `ps` process listings.
+                // Push both tags: the immutable versioned tag and the :latest convenience tag.
             }
         }
     }
@@ -137,7 +160,14 @@ pipeline {
         always {
             sh '''
                 docker rm -f ${APP_NAME}-smoke-test || true
+                docker rmi ${DOCKERHUB_REPO}:${IMAGE_TAG} || true
+                docker rmi ${DOCKERHUB_REPO}:latest || true
             '''
+            // ↑ Cleanup: remove the smoke test container if it survived, and delete
+            // the local images to prevent the Jenkins server's disk from filling up.
+            // || true means "don't fail the pipeline if the image is already gone."
+            // On a long-lived Jenkins server, skipping this leads to "no space left on device"
+            // at 3 AM — ask any DevOps engineer who's been paged for it.
         }
     }
 }
