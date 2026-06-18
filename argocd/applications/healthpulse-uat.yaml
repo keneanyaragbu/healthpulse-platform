@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/keneanyaragbu/healthpulse-platform.git
-    targetRevision: feature/backend-devsecops-quality
+    targetRevision: develop
     path: terraform/k3s/k8s/overlays/uat
   destination:
     server: https://kubernetes.default.svc

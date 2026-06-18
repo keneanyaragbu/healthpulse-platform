@@ -8,6 +8,10 @@ namespace: healthpulse-uat
 resources:
   - ../../base
 
+images:
+  - name: keneanyaragbu/healthpulse-backend
+    newTag: latest
+
 patches:
   - target:
       kind: Namespace
