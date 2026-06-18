@@ -5,16 +5,13 @@ pipeline {
         APP_NAME = 'healthpulse-backend'
         DOCKERHUB_REPO = 'keneanyaragbu/healthpulse-backend'
         IMAGE_TAG = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
-        // ↑ "build 14, commit abc1234" → "14-abc1234"
-        // Production tagging: ties every image to both the build AND the exact code.
-        // If someone asks "what's running in prod?", the tag answers both questions.
         BACKEND_DIR = 'app/backend'
     }
-    
+
     triggers {
         githubPush()
     }
-    
+
     stages {
         stage('Checkout') {
             steps {
@@ -58,7 +55,6 @@ pipeline {
             steps {
                 script {
                     def scannerHome = tool 'SonarScanner'
-
                     dir("${BACKEND_DIR}") {
                         withSonarQubeEnv('SonarQube') {
                             sh """
@@ -100,10 +96,6 @@ pipeline {
                     docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} ${BACKEND_DIR}
                     docker tag ${DOCKERHUB_REPO}:${IMAGE_TAG} ${DOCKERHUB_REPO}:latest
                 """
-                // ↑ Two tags per build:
-                //   :14-abc1234  → immutable, pinned to this exact build (what you deploy to prod)
-                //   :latest      → mutable, always points to the most recent build (convenience for dev)
-                // Never deploy :latest to production — it's a moving target.
             }
         }
 
@@ -112,9 +104,6 @@ pipeline {
                 sh """
                     trivy image --severity CRITICAL --exit-code 1 ${DOCKERHUB_REPO}:${IMAGE_TAG}
                 """
-                // ↑ Scans the image for known CVEs. --exit-code 1 means "fail the pipeline"
-                // if any CRITICAL vulnerability is found. The image doesn't leave this server
-                // until it passes. This is your gate — nothing with a critical CVE gets pushed.
             }
         }
 
@@ -127,10 +116,6 @@ pipeline {
                     curl -f http://localhost:3001/api/health
                     docker rm -f ${APP_NAME}-smoke-test
                 """
-                // ↑ Actually starts the image and hits the health endpoint before pushing.
-                // This catches runtime issues that static scans miss: missing env vars,
-                // broken entrypoints, port misconfigs. If curl fails (non-200), the stage
-                // fails and the image never reaches the registry.
             }
         }
 
@@ -147,14 +132,11 @@ pipeline {
                         docker push ${DOCKERHUB_REPO}:latest
                         docker logout
                     '''
-                // ↑ withCredentials injects the Docker Hub creds as env vars for this block only —
-                // they're masked in console output and never written to disk.
-                // --password-stdin avoids the password appearing in `ps` process listings.
-                // Push both tags: the immutable versioned tag and the :latest convenience tag.
+                }
             }
         }
-    }
-    stage('Update GitOps Manifest') {
+
+        stage('Update GitOps Manifest') {
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'github-creds',
@@ -177,6 +159,7 @@ pipeline {
                 }
             }
         }
+    }
 
     post {
         always {
@@ -185,12 +168,6 @@ pipeline {
                 docker rmi ${DOCKERHUB_REPO}:${IMAGE_TAG} || true
                 docker rmi ${DOCKERHUB_REPO}:latest || true
             '''
-            // ↑ Cleanup: remove the smoke test container if it survived, and delete
-            // the local images to prevent the Jenkins server's disk from filling up.
-            // || true means "don't fail the pipeline if the image is already gone."
-            // On a long-lived Jenkins server, skipping this leads to "no space left on device"
-            // at 3 AM — ask any DevOps engineer who's been paged for it.
         }
     }
 }
-    
