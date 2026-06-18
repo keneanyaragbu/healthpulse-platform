@@ -147,7 +147,6 @@ pipeline {
                         docker push ${DOCKERHUB_REPO}:latest
                         docker logout
                     '''
-                }
                 // ↑ withCredentials injects the Docker Hub creds as env vars for this block only —
                 // they're masked in console output and never written to disk.
                 // --password-stdin avoids the password appearing in `ps` process listings.
