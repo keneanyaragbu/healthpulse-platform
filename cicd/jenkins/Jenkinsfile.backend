@@ -154,8 +154,7 @@ pipeline {
                 // Push both tags: the immutable versioned tag and the :latest convenience tag.
             }
         }
-    }
-
+    
     stage('Update GitOps Manifest') {
             steps {
                 withCredentials([usernamePassword(
@@ -179,7 +178,7 @@ pipeline {
                 }
             }
         }
-        
+
     post {
         always {
             sh '''
