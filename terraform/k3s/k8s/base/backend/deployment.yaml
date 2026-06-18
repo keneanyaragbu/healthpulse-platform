@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: keneanyaragbu/healthpulse-backend:v3
+          image: keneanyaragbu/healthpulse-backend:37-367ffa6
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
