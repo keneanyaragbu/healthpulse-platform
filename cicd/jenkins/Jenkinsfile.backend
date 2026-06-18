@@ -18,6 +18,17 @@ pipeline {
                 checkout scm
             }
         }
+    stage('Skip CI Check') {
+            steps {
+                script {
+                    def commitMsg = sh(script: 'git log -1 --pretty=%B', returnStdout: true).trim()
+                    if (commitMsg.contains('[ci skip]')) {
+                        currentBuild.result = 'NOT_BUILT'
+                        error('Skipped: commit by Jenkins CI')
+                    }
+                }
+            }
+        }    
 
         stage('Verify Backend Files') {
             steps {
