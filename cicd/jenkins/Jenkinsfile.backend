@@ -171,3 +171,26 @@ pipeline {
         }
     }
 }
+    stage('Update GitOps Manifest') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'github-creds',
+                    usernameVariable: 'GIT_USER',
+                    passwordVariable: 'GIT_TOKEN' // pragma: allowlist secret
+                )]) { // pragma: allowlist secret
+                    sh """
+                        git clone https://${GIT_USER}:${GIT_TOKEN}@github.com/keneanyaragbu/healthpulse-platform.git gitops-repo
+                        cd gitops-repo
+                        git checkout feature/backend-devsecops-quality
+
+                        sed -i 's|image: keneanyaragbu/healthpulse-backend:.*|image: keneanyaragbu/healthpulse-backend:${IMAGE_TAG}|' terraform/k3s/k8s/base/backend/deployment.yaml
+
+                        git config user.email "jenkins@healthpulse.com"
+                        git config user.name "Jenkins CI"
+                        git add .
+                        git commit -m "chore: update backend image to ${IMAGE_TAG}" || echo "No changes to commit"
+                        git push origin feature/backend-devsecops-quality
+                    """
+                }
+            }
+        }
