@@ -4,7 +4,7 @@ pipeline {
     environment {
         APP_NAME = 'healthpulse-backend'
         DOCKERHUB_REPO = 'keneanyaragbu/healthpulse-backend'
-        IMAGE_TAG = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+        IMAGE_TAG = "${BUILD_NUMBER}"
         BACKEND_DIR = 'app/backend'
     }
 
@@ -16,19 +16,16 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
-            }
-        }
-    stage('Skip CI Check') {
-            steps {
                 script {
-                    def commitMsg = sh(script: 'git log -1 --pretty=%B', returnStdout: true).trim()
-                    if (commitMsg.contains('[ci skip]')) {
-                        currentBuild.result = 'NOT_BUILT'
-                        error('Skipped: commit by Jenkins CI')
+                    def author = sh(script: 'git log -1 --pretty=%an', returnStdout: true).trim()
+                    if (author == 'Jenkins CI') {
+                        currentBuild.result = 'ABORTED'
+                        currentBuild.description = 'Skipped: Jenkins CI commit'
+                        error('Jenkins CI commit — skipping')
                     }
                 }
             }
-        }    
+        }
 
         stage('Verify Backend Files') {
             steps {
@@ -68,9 +65,7 @@ pipeline {
                     def scannerHome = tool 'SonarScanner'
                     dir("${BACKEND_DIR}") {
                         withSonarQubeEnv('SonarQube') {
-                            sh """
-                                ${scannerHome}/bin/sonar-scanner
-                            """
+                            sh "${scannerHome}/bin/sonar-scanner"
                         }
                     }
                 }
@@ -112,9 +107,7 @@ pipeline {
 
         stage('Trivy Container Scan') {
             steps {
-                sh """
-                    trivy image --severity CRITICAL --exit-code 1 ${DOCKERHUB_REPO}:${IMAGE_TAG}
-                """
+                sh "trivy image --severity CRITICAL --exit-code 1 ${DOCKERHUB_REPO}:${IMAGE_TAG}"
             }
         }
 
@@ -162,24 +155,26 @@ pipeline {
                         BRANCH_NAME=\$(echo ${GIT_BRANCH} | sed 's|origin/||')
                         git checkout \${BRANCH_NAME}
 
-                        sed -i 's|newTag:.*|newTag: ${IMAGE_TAG}|' terraform/k3s/k8s/overlays/dev/kustomization.yaml
+                        sed -i 's|newTag:.*|newTag: "${IMAGE_TAG}"|' terraform/k3s/k8s/overlays/dev/kustomization.yaml
 
                         git config user.email "jenkins@healthpulse.com"
                         git config user.name "Jenkins CI"
                         git add .
-                        git commit -m "chore: update dev image to ${IMAGE_TAG} [ci skip]" || echo "No changes to commit"
+                        git commit -m "chore: update dev image to ${IMAGE_TAG}" || echo "No changes to commit"
                         git push origin \${BRANCH_NAME}
                     """
                 }
             }
         }
     }
+
     post {
         always {
             sh '''
                 docker rm -f ${APP_NAME}-smoke-test || true
                 docker rmi ${DOCKERHUB_REPO}:${IMAGE_TAG} || true
                 docker rmi ${DOCKERHUB_REPO}:latest || true
+                rm -rf gitops-repo
             '''
         }
     }
