@@ -156,21 +156,6 @@ pipeline {
         }
     }
 
-    post {
-        always {
-            sh '''
-                docker rm -f ${APP_NAME}-smoke-test || true
-                docker rmi ${DOCKERHUB_REPO}:${IMAGE_TAG} || true
-                docker rmi ${DOCKERHUB_REPO}:latest || true
-            '''
-            // ↑ Cleanup: remove the smoke test container if it survived, and delete
-            // the local images to prevent the Jenkins server's disk from filling up.
-            // || true means "don't fail the pipeline if the image is already gone."
-            // On a long-lived Jenkins server, skipping this leads to "no space left on device"
-            // at 3 AM — ask any DevOps engineer who's been paged for it.
-        }
-    }
-}
     stage('Update GitOps Manifest') {
             steps {
                 withCredentials([usernamePassword(
@@ -194,3 +179,20 @@ pipeline {
                 }
             }
         }
+        
+    post {
+        always {
+            sh '''
+                docker rm -f ${APP_NAME}-smoke-test || true
+                docker rmi ${DOCKERHUB_REPO}:${IMAGE_TAG} || true
+                docker rmi ${DOCKERHUB_REPO}:latest || true
+            '''
+            // ↑ Cleanup: remove the smoke test container if it survived, and delete
+            // the local images to prevent the Jenkins server's disk from filling up.
+            // || true means "don't fail the pipeline if the image is already gone."
+            // On a long-lived Jenkins server, skipping this leads to "no space left on device"
+            // at 3 AM — ask any DevOps engineer who's been paged for it.
+        }
+    }
+}
+    
