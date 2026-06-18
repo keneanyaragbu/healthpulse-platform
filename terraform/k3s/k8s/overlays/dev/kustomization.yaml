@@ -10,7 +10,7 @@ resources:
 
 images:
   - name: keneanyaragbu/healthpulse-backend
-    newTag: 53-026394e
+    newTag: 54-bfb8391
 
 patches:
   - target:
