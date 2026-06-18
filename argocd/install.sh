@@ -9,7 +9,7 @@ kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
 # dry-run + apply = create if missing, no error if exists. Idempotent.
 
 echo "==> Installing ArgoCD..."
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml --server-side=true --force-conflicts
 # Deploys all ArgoCD components: API server, repo server, controller, Redis, Dex.
 
 echo "==> Waiting for ArgoCD pods to be ready..."
