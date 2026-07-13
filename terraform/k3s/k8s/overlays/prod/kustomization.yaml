@@ -20,3 +20,30 @@ patches:
       - op: replace
         path: /metadata/name
         value: healthpulse-prod
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: healthpulse-backend-hpa
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 8
+  - target:
+      kind: Ingress
+      name: healthpulse-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: healthpulse.local
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: healthpulse-web-hpa
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 8

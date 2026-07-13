@@ -10,7 +10,7 @@ resources:
 
 images:
   - name: keneanyaragbu/healthpulse-backend
-    newTag: "62"
+    newTag: latest
 
 patches:
   - target:
@@ -20,3 +20,30 @@ patches:
       - op: replace
         path: /metadata/name
         value: healthpulse-dev
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: healthpulse-backend-hpa
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+  - target:
+      kind: Ingress
+      name: healthpulse-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: healthpulse-dev.local
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: healthpulse-web-hpa
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2

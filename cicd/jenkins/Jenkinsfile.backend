@@ -155,7 +155,7 @@ pipeline {
                         BRANCH_NAME=\$(echo ${GIT_BRANCH} | sed 's|origin/||')
                         git checkout \${BRANCH_NAME}
 
-                        sed -i 's|newTag:.*|newTag: "${IMAGE_TAG}"|' terraform/k3s/k8s/overlays/dev/kustomization.yaml
+                        sed -i 's|newTag:.*|newTag: ${IMAGE_TAG}|' terraform/k3s/k8s/overlays/dev/kustomization.yaml
 
                         git config user.email "jenkins@healthpulse.com"
                         git config user.name "Jenkins CI"
