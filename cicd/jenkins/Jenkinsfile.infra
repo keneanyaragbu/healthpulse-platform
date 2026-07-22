@@ -1,0 +1,99 @@
+pipeline {
+    agent any
+
+    parameters {
+        choice(name: 'ENVIRONMENT', choices: ['dev', 'uat', 'prod'], description: 'Target environment')
+        choice(name: 'ACTION', choices: ['apply', 'destroy'], description: 'Terraform action')
+    }
+
+    environment {
+        TF_DIR = 'terraform/k3s'
+        TF_IN_AUTOMATION = 'true'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh 'terraform init -input=false'
+                }
+            }
+        }
+
+        stage('Select Workspace') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh """
+                        terraform workspace select ${params.ENVIRONMENT} || terraform workspace new ${params.ENVIRONMENT}
+                        echo "Active workspace:"
+                        terraform workspace show
+                    """
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                dir("${TF_DIR}") {
+                    withCredentials([string(credentialsId: 'healthpulse-ssh-pubkey', variable: 'SSH_PUBKEY')]) {
+                        script {
+                            def planCmd = params.ACTION == 'destroy' ? 'plan -destroy' : 'plan'
+                            sh """
+                                terraform ${planCmd} \
+                                  -var-file=${params.ENVIRONMENT}.tfvars \
+                                  -var='ssh_public_key=${SSH_PUBKEY}' \
+                                  -var='ssh_allowed_cidr=0.0.0.0/0' \
+                                  -out=tfplan \
+                                  -input=false
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Approval Gate') {
+            steps {
+                script {
+                    def summary = sh(
+                        script: "cd ${TF_DIR} && terraform show -no-color tfplan | grep 'Plan:' || echo 'No changes'",
+                        returnStdout: true
+                    ).trim()
+                    input message: "${params.ENVIRONMENT.toUpperCase()} ${params.ACTION}\n\n${summary}\n\nApprove?",
+                          ok: "Approve ${params.ACTION}"
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh 'terraform apply -input=false tfplan'
+                }
+            }
+        }
+
+        stage('Output') {
+            when { expression { params.ACTION == 'apply' } }
+            steps {
+                dir("${TF_DIR}") {
+                    sh 'terraform output'
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            dir("${TF_DIR}") {
+                sh 'rm -f tfplan'
+            }
+        }
+    }
+}

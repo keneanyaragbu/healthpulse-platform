@@ -16,6 +16,10 @@ provider "aws" {
   region = var.aws_region
 }
 
+locals {
+  name_prefix = "${var.project_name}-${var.environment}"
+}
+
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"]
@@ -35,7 +39,7 @@ resource "random_password" "k3s_token" {
 }
 
 resource "aws_key_pair" "k3s" {
-  key_name   = "${var.project_name}-k3s-key"
+  key_name   = "${local.name_prefix}-k3s-key"
   public_key = var.ssh_public_key
 }
 
@@ -45,7 +49,7 @@ resource "aws_vpc" "k3s" {
   enable_dns_support   = true
 
   tags = {
-    Name    = "${var.project_name}-k3s-vpc"
+    Name    = "${local.name_prefix}-k3s-vpc"
     Project = var.project_name
     Env     = var.environment
   }
@@ -58,7 +62,7 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name    = "${var.project_name}-k3s-public-subnet"
+    Name    = "${local.name_prefix}-k3s-public-subnet"
     Project = var.project_name
     Env     = var.environment
   }
@@ -68,7 +72,7 @@ resource "aws_internet_gateway" "k3s" {
   vpc_id = aws_vpc.k3s.id
 
   tags = {
-    Name    = "${var.project_name}-k3s-igw"
+    Name    = "${local.name_prefix}-k3s-igw"
     Project = var.project_name
     Env     = var.environment
   }
@@ -83,7 +87,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name    = "${var.project_name}-k3s-public-rt"
+    Name    = "${local.name_prefix}-k3s-public-rt"
     Project = var.project_name
     Env     = var.environment
   }
@@ -95,7 +99,7 @@ resource "aws_route_table_association" "public" {
 }
 
 resource "aws_security_group" "k3s" {
-  name        = "${var.project_name}-k3s-sg"
+  name        = "${local.name_prefix}-k3s-sg"
   description = "Security group for k3s cluster"
   vpc_id      = aws_vpc.k3s.id
 
@@ -156,7 +160,7 @@ resource "aws_security_group" "k3s" {
   }
 
   tags = {
-    Name    = "${var.project_name}-k3s-sg"
+    Name    = "${local.name_prefix}-k3s-sg"
     Project = var.project_name
     Env     = var.environment
   }
@@ -174,7 +178,7 @@ resource "aws_instance" "master" {
   })
 
   tags = {
-    Name    = "${var.project_name}-k3s-master"
+    Name    = "${local.name_prefix}-k3s-master"
     Role    = "master"
     Project = var.project_name
     Env     = var.environment
@@ -186,7 +190,7 @@ resource "aws_eip" "master" {
   domain   = "vpc"
 
   tags = {
-    Name    = "${var.project_name}-k3s-master-eip"
+    Name    = "${local.name_prefix}-k3s-master-eip"
     Project = var.project_name
     Env     = var.environment
   }
@@ -209,7 +213,7 @@ resource "aws_instance" "worker" {
   depends_on = [aws_instance.master]
 
   tags = {
-    Name    = "${var.project_name}-k3s-worker-${count.index + 1}"
+    Name    = "${local.name_prefix}-k3s-worker-${count.index + 1}"
     Role    = "worker"
     Project = var.project_name
     Env     = var.environment
