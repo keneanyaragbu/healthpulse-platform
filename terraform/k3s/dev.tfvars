@@ -5,6 +5,6 @@ environment  = "dev"
 vpc_cidr           = "10.20.0.0/16"
 public_subnet_cidr = "10.20.1.0/24"
 
-master_instance_type = "t3.small"
-worker_instance_type = "t3.small"
+master_instance_type = "t3.medium"
+worker_instance_type = "t3.medium"
 worker_count         = 2
